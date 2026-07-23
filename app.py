@@ -3,95 +3,54 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import plotly.graph_objects as go
+import joblib
+import os
 
-# --- 1. GLOBAL ROOT CANVAS CONFIGURATION ---
-st.set_page_config(
-    page_title="ConnectTel Executive Suite",
-    page_icon="💎",
-    layout="wide",
-)
+st.set_page_config(page_title='ConnectTel Hub', layout='wide')
 
-# --- 2. PREMIUM CSS INJECTION (GLOW & ANIMATION) ---
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+# Premium Dark Theme CSS
+st.markdown("""<style>
+    html, body, [data-testid='stAppViewContainer'] { background-color: #0F172A !important; color: #E2E8F0 !important; }
+    [data-testid='stMetric'] { background: rgba(30, 41, 59, 0.7); border-radius: 12px; padding: 20px; }
+</style>""", unsafe_allow_html=True)
 
-    html, body, [data-testid='stAppViewContainer'] {
-        background-color: #0F172A !important;
-        font-family: 'Inter', sans-serif;
-    }
+@st.cache_resource
+def load_production_artifacts():
+    # Using filenames assuming they are in the same repo directory on Streamlit Cloud
+    model = joblib.load('connecttel_churn_model.pkl')
+    features = joblib.load('feature_columns.pkl')
+    return model, features
 
-    /* Glassmorphism Metric Cards */
-    [data-testid='stMetric'] {
-        background: rgba(30, 41, 59, 0.7) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        padding: 25px !important;
-        border-radius: 15px !important;
-        backdrop-filter: blur(10px);
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
+st.sidebar.title("💎 ConnectTel Suite")
+view = st.sidebar.radio("Workstreams", ["🛡️ Retention HQ", "📊 Data Science Lab"])
 
-    [data-testid='stMetric']:hover {
-        transform: scale(1.05);
-        border-color: #D4AF37 !important;
-        box-shadow: 0 10px 25px rgba(212, 175, 55, 0.2);
-    }
-
-    /* Styled Buttons */
-    .stButton>button {
-        background: linear-gradient(135deg, #D4AF37 0%, #C5A028 100%) !important;
-        color: #0F172A !important;
-        font-weight: 700 !important;
-        border-radius: 10px !important;
-        border: none !important;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        transition: all 0.3s ease;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# --- 3. SIDEBAR INTELLIGENCE SELECTOR ---
-st.sidebar.image("https://img.icons8.com/fluency/96/diamond.png", width=80)
-st.sidebar.title("Executive Suite")
-st.sidebar.markdown("--- ")
-
-view = st.sidebar.radio("Core Workstreams",
-    ["🛡️ Retention HQ", "📊 Data Science Lab", "💰 Financial Forecast"]
-)
-
-# --- 4. SHARED DATA LAYER ---
-uploaded_file = st.file_uploader("📁 Deploy Customer Ingestion Asset (telecom_churn.csv)", type=["csv"])
+uploaded_file = st.file_uploader("Upload Manifest", type=["csv"])
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
-    df['charge_velocity'] = (df['monthly_charges'] / (df['total_charges'] + 1)).round(4)
-    df['risk_score'] = (df.get('network_issues_3m', 0) * 0.2 + df['charge_velocity'] * 0.5).clip(0.05, 0.95)
+    model, model_features = load_production_artifacts()
+
+    # LIVE PREDICTION PIPELINE
+    with st.spinner('Calculating Risk Scores...'):
+        X_input = df.reindex(columns=model_features, fill_value=0)
+        df['risk_score'] = model.predict_proba(X_input)[:, 1]
 
     if view == "🛡️ Retention HQ":
-        st.title("🛡️ Strategic Retention Command")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Active Flags", len(df[df['risk_score'] > 0.15]))
-        c2.metric("Avg Risk", f"{df['risk_score'].mean():.2%}")
-        c3.metric("Revenue at Stake", f"${df.loc[df['risk_score']>0.7, 'monthly_charges'].sum():,.0f}")
-        c4.metric("ROI Efficiency", "4.8x")
-
-        st.markdown("### 🕹️ Real-time Analysis Controllers")
-        btn_col1, btn_col2 = st.columns(2)
-        if btn_col1.button("📈 Visualize Churn Clusters"):
-            fig = px.scatter(df, x='tenure_months', y='monthly_charges', color='risk_score', size='monthly_charges', color_continuous_scale='YlOrRd')
-            fig.update_layout(template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig, use_container_width=True)
+        st.title("🛡️ Retention Command")
+        st.subheader("Customer Risk Clusters (Actual Model Predictions)")
+        fig = px.scatter(df, x='tenure_months', y='monthly_charges', color='risk_score',
+                         color_continuous_scale='Oryel', title='Interactive Churn Risk')
+        fig.update_layout(template='plotly_dark')
+        st.plotly_chart(fig, use_container_width=True)
 
     elif view == "📊 Data Science Lab":
-        st.title("🧪 ML Engine & Drift Telemetry")
-        feat_imp = pd.DataFrame({
-            'Feature': ['Friction Score', 'Charge Velocity', 'Silent Risk', 'Tenure'],
-            'Impact': [0.35, 0.28, 0.22, 0.15]
-        })
-        fig = px.pie(feat_imp, values='Impact', names='Feature', hole=0.6, color_discrete_sequence=px.colors.sequential.Gold)
-        fig.update_layout(template='plotly_dark')
-        st.plotly_chart(fig)
+        st.title("🧪 ML Engine Insights")
+        feat_data = pd.DataFrame([{'Feature': 'nps_score', 'Power': 0.058867686540538394}, {'Feature': 'avg_data_speed_mbps', 'Power': 0.04840944422709847}, {'Feature': 'charge_velocity', 'Power': 0.04781293943494938}, {'Feature': 'avg_voice_mins_month', 'Power': 0.04708298555330015}, {'Feature': 'total_charges', 'Power': 0.04673949047264355}, {'Feature': 'usage_intensity', 'Power': 0.045471066996841274}, {'Feature': 'dropped_call_rate', 'Power': 0.04503586768433124}, {'Feature': 'service_rating_last_6m', 'Power': 0.04460559144939115}, {'Feature': 'overage_charges', 'Power': 0.04401795119605312}, {'Feature': 'silent_risk_score', 'Power': 0.04369079978160309}])
+
+        st.subheader("Actual Model Feature Importance")
+        fig_bar = px.bar(feat_data, x='Power', y='Feature', orientation='h',
+                         color='Power', color_continuous_scale='Goldset_r')
+        fig_bar.update_layout(template='plotly_dark', yaxis={'categoryorder':'total ascending'})
+        st.plotly_chart(fig_bar, use_container_width=True)
 else:
-    st.info("💎 Please upload the manifest to unlock telemetry.")
+    st.info("Please upload data to begin.")
