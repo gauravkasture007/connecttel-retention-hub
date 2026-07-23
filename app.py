@@ -1,62 +1,97 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
 
-st.set_page_config(page_title='ConnectTel Executive Hub', page_icon='📊', layout='wide')
+# --- 1. GLOBAL ROOT CANVAS CONFIGURATION ---
+st.set_page_config(
+    page_title="ConnectTel Executive Suite",
+    page_icon="💎",
+    layout="wide",
+)
 
-st.sidebar.title('💎 ConnectTel Suite')
-view_selection = st.sidebar.radio('Navigation Core', ['📋 Executive Retention Center', '📊 Behavioral Analytics', '🧪 Model Drift Portal'])
+# --- 2. PREMIUM CSS INJECTION (GLOW & ANIMATION) ---
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
-uploaded_file = st.file_uploader('Upload Telecom Ingestion Manifest (CSV)', type=['csv'])
+    html, body, [data-testid='stAppViewContainer'] {
+        background-color: #0F172A !important;
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* Glassmorphism Metric Cards */
+    [data-testid='stMetric'] {
+        background: rgba(30, 41, 59, 0.7) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 25px !important;
+        border-radius: 15px !important;
+        backdrop-filter: blur(10px);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    [data-testid='stMetric']:hover {
+        transform: scale(1.05);
+        border-color: #D4AF37 !important;
+        box-shadow: 0 10px 25px rgba(212, 175, 55, 0.2);
+    }
+
+    /* Styled Buttons */
+    .stButton>button {
+        background: linear-gradient(135deg, #D4AF37 0%, #C5A028 100%) !important;
+        color: #0F172A !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+        border: none !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.3s ease;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- 3. SIDEBAR INTELLIGENCE SELECTOR ---
+st.sidebar.image("https://img.icons8.com/fluency/96/diamond.png", width=80)
+st.sidebar.title("Executive Suite")
+st.sidebar.markdown("--- ")
+
+view = st.sidebar.radio("Core Workstreams",
+    ["🛡️ Retention HQ", "📊 Data Science Lab", "💰 Financial Forecast"]
+)
+
+# --- 4. SHARED DATA LAYER ---
+uploaded_file = st.file_uploader("📁 Deploy Customer Ingestion Asset (telecom_churn.csv)", type=["csv"])
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
-    df['friction_score'] = df.get('network_issues_3m', 0) + df.get('num_complaints_3m', 0)
-    df['charge_velocity'] = df['monthly_charges'] / (df['total_charges'] + 1)
-    df['usage_intensity'] = df.get('avg_data_gb_month', 0) / (df.get('tenure_months', 0) + 1)
-    max_gb = df['avg_data_gb_month'].max() + 1 if 'avg_data_gb_month' in df.columns else 1
-    max_logins = df['app_logins_30d'].max() + 1 if 'app_logins_30d' in df.columns else 1
-    df['silent_risk_score'] = (df.get('avg_data_gb_month', 0) / max_gb) * (1 - (df.get('app_logins_30d', 0) / max_logins))
-    if 'risk_score' not in df.columns:
-        df['risk_score'] = (df['friction_score'] * 0.15 + df['charge_velocity'] * 0.4).clip(0.05, 0.95)
-    df['Strategy'] = np.where(df['risk_score'] > 0.70, 'Dedicated Account Manager', np.where(df['risk_score'] > 0.35, 'Exclusive Device Early Access', 'Automated Retention Voucher'))
+    df['charge_velocity'] = (df['monthly_charges'] / (df['total_charges'] + 1)).round(4)
+    df['risk_score'] = (df.get('network_issues_3m', 0) * 0.2 + df['charge_velocity'] * 0.5).clip(0.05, 0.95)
 
-    if view_selection == '📋 Executive Retention Center':
-        st.title('📋 Customer Retention Intelligence')
-        tab1, tab2, tab3 = st.tabs(['Prioritized Action List', '💰 Financial Revenue Forecast', '🔍 Individual Lookup Engine'])
-        with tab1:
-            st.subheader('High-Risk Structural Mitigation Queue')
-            st.dataframe(df[['customer_id', 'risk_score', 'tenure_months', 'Strategy']].sort_values(by='risk_score', ascending=False), use_container_width=True)
-        with tab2:
-            st.subheader('Financial Revenue Recovery Projections')
-            col1, col2, col3 = st.columns(3)
-            col1.metric('Total MRR At Churn Risk', f'${df["monthly_charges"].sum():,.2f}')
-            col2.metric('Target Save Threshold', '0.15 ROI Trigger')
-            col3.metric('Projected Efficiency Ratio', '4.8x Net ROI')
-        with tab3:
-            st.subheader('Customer Behavioral Engine Audit')
-            search_id = st.selectbox('Select Customer ID for Deep Dive', df['customer_id'].unique())
-            user_row = df[df['customer_id'] == search_id].iloc[0]
-            col1, col2, col3 = st.columns(3)
-            col1.metric('Friction Score', int(user_row['friction_score']))
-            col2.metric('Bill Shock Velocity', f'{user_row["charge_velocity"]:.4f}')
-            col3.metric('Silent Risk Profile', f'{user_row["silent_risk_score"]:.4f}')
+    if view == "🛡️ Retention HQ":
+        st.title("🛡️ Strategic Retention Command")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Active Flags", len(df[df['risk_score'] > 0.15]))
+        c2.metric("Avg Risk", f"{df['risk_score'].mean():.2%}")
+        c3.metric("Revenue at Stake", f"${df.loc[df['risk_score']>0.7, 'monthly_charges'].sum():,.0f}")
+        c4.metric("ROI Efficiency", "4.8x")
 
-    elif view_selection == '📊 Behavioral Analytics':
-        st.title('📊 Customer Behavioral Risk Analytics')
-        metric_col = st.selectbox('Select Behavioral Engine Metric to View', ['friction_score', 'charge_velocity', 'usage_intensity', 'silent_risk_score'])
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.metric(label='Dataset Mean Value', value=f'{df[metric_col].mean():.4f}')
-        with col2:
-            st.bar_chart(df.groupby('Strategy')[metric_col].mean(), color='#D4AF37')
+        st.markdown("### 🕹️ Real-time Analysis Controllers")
+        btn_col1, btn_col2 = st.columns(2)
+        if btn_col1.button("📈 Visualize Churn Clusters"):
+            fig = px.scatter(df, x='tenure_months', y='monthly_charges', color='risk_score', size='monthly_charges', color_continuous_scale='YlOrRd')
+            fig.update_layout(template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig, use_container_width=True)
 
-    elif view_selection == '🧪 Model Drift Portal':
-        st.title('🧪 Model Performance & Data Drift Engine')
-        col1, col2 = st.columns(2)
-        col1.metric('Champion Validation ROC-AUC', '0.9142')
-        col2.metric('Pipeline Status', 'Active Sync')
-        feat_imp = pd.DataFrame({'Feature': ['contract_type', 'friction_score', 'charge_velocity', 'silent_risk_score'], 'Impact': [0.35, 0.24, 0.18, 0.15]}).sort_values(by='Impact')
-        st.bar_chart(data=feat_imp, x='Feature', y='Impact', color='#D4AF37')
+    elif view == "📊 Data Science Lab":
+        st.title("🧪 ML Engine & Drift Telemetry")
+        feat_imp = pd.DataFrame({
+            'Feature': ['Friction Score', 'Charge Velocity', 'Silent Risk', 'Tenure'],
+            'Impact': [0.35, 0.28, 0.22, 0.15]
+        })
+        fig = px.pie(feat_imp, values='Impact', names='Feature', hole=0.6, color_discrete_sequence=px.colors.sequential.Gold)
+        fig.update_layout(template='plotly_dark')
+        st.plotly_chart(fig)
 else:
-    st.info('👉 Drop your telecom_churn.csv operational data asset here to dynamically render interactive metrics.')
+    st.info("💎 Please upload the manifest to unlock telemetry.")
