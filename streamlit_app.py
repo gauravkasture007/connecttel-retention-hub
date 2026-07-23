@@ -44,24 +44,24 @@ uploaded_file = st.sidebar.file_uploader("Upload Manifest (CSV)", type=["csv"])
 if uploaded_file is not None:
     df_raw = pd.read_csv(uploaded_file)
     model, model_features = load_artifacts()
-    
+
     # --- ROBUST PREPROCESSING ENGINE ---
     df_proc = df_raw.copy()
-    
+
     # 1. Behavioral Engineering
     engineer = ConnectTelFeatureEngineer()
     df_proc = engineer.transform(df_proc)
-    
+
     # 2. Categorical Encoding (Required for XGBoost)
     le = LabelEncoder()
     cat_cols = ['gender', 'region_circle', 'connection_type', 'plan_type', 'contract_type', 'base_plan_category', 'segment_value']
     for col in cat_cols:
         if col in df_proc.columns:
             df_proc[col] = le.fit_transform(df_proc[col].astype(str))
-            
+
     # 3. Feature Alignment
     X_input = df_proc.reindex(columns=model_features, fill_value=0)
-    
+
     # 4. Inference
     df_raw["risk_score"] = model.predict_proba(X_input)[:, 1]
 
@@ -89,7 +89,7 @@ if uploaded_file is not None:
         st.title("🧪 Champion Model Telemetry")
         feat_data = [{'Feature': 'nps_score', 'Importance': 0.058867686540538394}, {'Feature': 'avg_data_speed_mbps', 'Importance': 0.04840944422709847}, {'Feature': 'charge_velocity', 'Importance': 0.04781293943494938}, {'Feature': 'avg_voice_mins_month', 'Importance': 0.04708298555330015}, {'Feature': 'total_charges', 'Importance': 0.04673949047264355}, {'Feature': 'usage_intensity', 'Importance': 0.045471066996841274}, {'Feature': 'dropped_call_rate', 'Importance': 0.04503586768433124}, {'Feature': 'service_rating_last_6m', 'Importance': 0.04460559144939115}, {'Feature': 'overage_charges', 'Importance': 0.04401795119605312}, {'Feature': 'silent_risk_score', 'Importance': 0.04369079978160309}]
         fig_imp = px.bar(pd.DataFrame(feat_data), x="Importance", y="Feature", orientation="h",
-                         color="Importance", color_continuous_scale="Goldset", template="plotly_dark")
+                         color="Importance", color_continuous_scale="Oryel", template="plotly_dark")
         st.plotly_chart(fig_imp, use_container_width=True)
 
     elif view == "📄 Governance":
