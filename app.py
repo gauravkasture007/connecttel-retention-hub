@@ -16,7 +16,6 @@ st.markdown("""<style>
 
 @st.cache_resource
 def load_production_artifacts():
-    # Using filenames assuming they are in the same repo directory on Streamlit Cloud
     model = joblib.load('connecttel_churn_model.pkl')
     features = joblib.load('feature_columns.pkl')
     return model, features
@@ -30,7 +29,6 @@ if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
     model, model_features = load_production_artifacts()
 
-    # LIVE PREDICTION PIPELINE
     with st.spinner('Calculating Risk Scores...'):
         X_input = df.reindex(columns=model_features, fill_value=0)
         df['risk_score'] = model.predict_proba(X_input)[:, 1]
